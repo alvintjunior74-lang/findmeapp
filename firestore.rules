@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    // USER RULES
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'username', 'trustScore', 'joinedAt']) &&
+             data.keys().size() == 4 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.username is string && data.username.size() > 0 && data.username.size() <= 30 &&
+             data.trustScore is number &&
+             data.joinedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       isValidUser(incoming()) &&
+                       incoming().trustScore == 0 &&
+                       incoming().joinedAt == request.time;
+      allow update: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidUser(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['username', 'trustScore']) &&
+                       incoming().joinedAt == existing().joinedAt &&
+                       incoming().email == existing().email;
+    }
+
+    // POST RULES
+    function isValidPost(data) {
+      return data.keys().hasAll(['authorId', 'content', 'emotion', 'timestamp', 'supportCount', 'isAnonymous']) &&
+             data.keys().size() == 6 &&
+             data.authorId is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 1000 &&
+             data.emotion is string && data.emotion in ['happy', 'sad', 'angry', 'tired', 'anxious', 'neutral', 'hopeful'] &&
+             data.timestamp is timestamp &&
+             data.supportCount is number &&
+             data.isAnonymous is bool;
+    }
+
+    match /posts/{postId} {
+      allow get: if isSignedIn() && (existing().authorId == request.auth.uid || existing().isAnonymous == true);
+      allow list: if isSignedIn() && (existing().authorId == request.auth.uid || existing().isAnonymous == true);
+      allow create: if isSignedIn() &&
+                       isValidId(postId) &&
+                       isValidPost(incoming()) &&
+                       incoming().authorId == request.auth.uid &&
+                       incoming().timestamp == request.time &&
+                       incoming().supportCount == 0 &&
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow update: if isSignedIn() &&
+                       isValidPost(incoming()) &&
+                       // Allow anyone to give "support" by incrementing support count
+                       (
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['supportCount']) && 
+                           incoming().supportCount == existing().supportCount + 1
+                         ) ||
+                         (
+                           request.auth.uid == existing().authorId && 
+                           incoming().diff(existing()).affectedKeys().hasOnly(['content', 'emotion', 'isAnonymous'])
+                         )
+                       ) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().timestamp == existing().timestamp;
+      allow delete: if isSignedIn() && 
+                       request.auth.uid == existing().authorId;
+    }
+
+    // CHAT ROOM RULES
+    function isValidChatRoom(data) {
+      return data.keys().hasAll(['name', 'createdAt', 'isDirect', 'participants']) &&
+             data.keys().size() == 4 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 50 &&
+             data.createdAt is timestamp &&
+             data.isDirect is bool &&
+             data.participants is list && data.participants.size() <= 20;
+    }
+
+    match /chatRooms/{roomId} {
+      allow get: if isSignedIn() && (!existing().isDirect || request.auth.uid in existing().participants);
+      allow list: if isSignedIn() && (!existing().isDirect || request.auth.uid in existing().participants);
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidChatRoom(incoming()) &&
+                       incoming().createdAt == request.time &&
+                       (!incoming().isDirect || request.auth.uid in incoming().participants);
+    }
+
+    // MESSAGE RULES
+    function isValidMessage(data) {
+      return data.keys().hasAll(['senderId', 'text', 'timestamp']) &&
+             data.keys().size() == 3 &&
+             data.senderId is string && data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 2000 &&
+             data.timestamp is timestamp;
+    }
+
+    match /chatRooms/{roomId}/messages/{messageId} {
+      allow get: if isSignedIn() && exists(/databases/$(database)/documents/chatRooms/$(roomId));
+      allow list: if isSignedIn() && exists(/databases/$(database)/documents/chatRooms/$(roomId));
+      allow create: if isSignedIn() &&
+                       isValidId(messageId) &&
+                       isValidMessage(incoming()) &&
+                       incoming().timestamp == request.time &&
+                       exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+  }
+}

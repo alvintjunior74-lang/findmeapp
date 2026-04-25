@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the FindMe application",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "username": { "type": "string" },
+        "trustScore": { "type": "number" },
+        "joinedAt": { "type": "number" }
+      },
+      "required": ["email", "username", "trustScore", "joinedAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "An emotional share or update",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "content": { "type": "string" },
+        "emotion": { "type": "string", "enum": ["happy", "sad", "angry", "tired", "anxious", "neutral", "hopeful"] },
+        "timestamp": { "type": "number" },
+        "supportCount": { "type": "number" }
+      },
+      "required": ["authorId", "content", "emotion", "timestamp", "supportCount"]
+    },
+    "ChatRoom": {
+      "title": "ChatRoom",
+      "description": "A global or private trust circle",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message within a chat room (encrypted string simulation)",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["senderId", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles keyed by auth UID"
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Global feed of emotional shares"
+    },
+    "/chatRooms/{roomId}": {
+      "schema": { "$ref": "#/entities/ChatRoom" },
+      "description": "Collection of trust circles"
+    },
+    "/chatRooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages within a specific room"
+    }
+  }
+}
