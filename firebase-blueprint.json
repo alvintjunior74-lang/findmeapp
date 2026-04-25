@@ -8,9 +8,10 @@
         "email": { "type": "string" },
         "username": { "type": "string" },
         "trustScore": { "type": "number" },
-        "joinedAt": { "type": "number" }
+        "joinedAt": { "type": "number" },
+        "role": { "type": "string", "enum": ["user", "therapist"] }
       },
-      "required": ["email", "username", "trustScore", "joinedAt"]
+      "required": ["email", "username", "trustScore", "joinedAt", "role"]
     },
     "Post": {
       "title": "Post",
@@ -18,12 +19,42 @@
       "type": "object",
       "properties": {
         "authorId": { "type": "string" },
+        "authorRole": { "type": "string", "enum": ["user", "therapist"] },
         "content": { "type": "string" },
         "emotion": { "type": "string", "enum": ["happy", "sad", "angry", "tired", "anxious", "neutral", "hopeful"] },
         "timestamp": { "type": "number" },
-        "supportCount": { "type": "number" }
+        "supportCount": { "type": "number" },
+        "likeCount": { "type": "number" },
+        "hugCount": { "type": "number" },
+        "lastEditedAt": { "type": "number" },
+        "isAnonymous": { "type": "boolean" }
       },
-      "required": ["authorId", "content", "emotion", "timestamp", "supportCount"]
+      "required": ["authorId", "content", "emotion", "timestamp", "supportCount", "likeCount", "hugCount", "isAnonymous"]
+    },
+    "TherapistAdvice": {
+      "title": "TherapistAdvice",
+      "description": "Professional support from a therapist",
+      "type": "object",
+      "properties": {
+        "therapistId": { "type": "string" },
+        "therapistName": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["therapistId", "therapistName", "content", "createdAt"]
+    },
+    "PostHistory": {
+      "title": "PostHistory",
+      "description": "Historical version of a post",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string" },
+        "emotion": { "type": "string" },
+        "isAnonymous": { "type": "boolean" },
+        "editedAt": { "type": "number" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["content", "emotion", "isAnonymous", "editedAt", "authorId"]
     },
     "ChatRoom": {
       "title": "ChatRoom",
@@ -41,8 +72,10 @@
       "type": "object",
       "properties": {
         "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
         "text": { "type": "string" },
-        "timestamp": { "type": "number" }
+        "timestamp": { "type": "number" },
+        "postId": { "type": "string" }
       },
       "required": ["senderId", "text", "timestamp"]
     }
@@ -55,6 +88,14 @@
     "/posts/{postId}": {
       "schema": { "$ref": "#/entities/Post" },
       "description": "Global feed of emotional shares"
+    },
+    "/posts/{postId}/history/{historyId}": {
+      "schema": { "$ref": "#/entities/PostHistory" },
+      "description": "Edit history for a post"
+    },
+    "/posts/{postId}/therapistAdvice/{adviceId}": {
+      "schema": { "$ref": "#/entities/TherapistAdvice" },
+      "description": "Professional advice given by therapists"
     },
     "/chatRooms/{roomId}": {
       "schema": { "$ref": "#/entities/ChatRoom" },

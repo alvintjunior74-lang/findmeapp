@@ -15,17 +15,23 @@ service cloud.firestore {
 
     // USER RULES
     function isValidUser(data) {
-      return data.keys().hasAll(['email', 'username', 'trustScore', 'joinedAt']) &&
-             data.keys().size() == 4 &&
+      return data.keys().hasAll(['email', 'username', 'trustScore', 'joinedAt', 'role']) &&
+             data.keys().size() == 5 &&
              data.email is string && data.email.size() <= 150 &&
              data.username is string && data.username.size() > 0 && data.username.size() <= 30 &&
              data.trustScore is number &&
-             data.joinedAt is timestamp;
+             data.joinedAt is timestamp &&
+             data.role is string && data.role in ['user', 'therapist'];
+    }
+
+    function isTherapist() {
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'therapist';
     }
 
     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
-      allow list: if isSignedIn() && request.auth.uid == userId;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn() &&
                        request.auth.uid == userId &&
                        isValidId(userId) &&
@@ -42,14 +48,18 @@ service cloud.firestore {
 
     // POST RULES
     function isValidPost(data) {
-      return data.keys().hasAll(['authorId', 'content', 'emotion', 'timestamp', 'supportCount', 'isAnonymous']) &&
-             data.keys().size() == 6 &&
+      return data.keys().hasAll(['authorId', 'authorRole', 'content', 'emotion', 'timestamp', 'supportCount', 'likeCount', 'hugCount', 'isAnonymous']) &&
+             data.keys().size() >= 9 && data.keys().size() <= 10 &&
              data.authorId is string &&
+             data.authorRole is string && data.authorRole in ['user', 'therapist'] &&
              data.content is string && data.content.size() > 0 && data.content.size() <= 1000 &&
              data.emotion is string && data.emotion in ['happy', 'sad', 'angry', 'tired', 'anxious', 'neutral', 'hopeful'] &&
              data.timestamp is timestamp &&
              data.supportCount is number &&
-             data.isAnonymous is bool;
+             data.likeCount is number &&
+             data.hugCount is number &&
+             data.isAnonymous is bool &&
+             (!data.keys().hasAny(['lastEditedAt']) || data.lastEditedAt is timestamp);
     }
 
     match /posts/{postId} {
@@ -64,21 +74,40 @@ service cloud.firestore {
                        exists(/databases/$(database)/documents/users/$(request.auth.uid));
       allow update: if isSignedIn() &&
                        isValidPost(incoming()) &&
-                       // Allow anyone to give "support" by incrementing support count
                        (
+                         // Anyone can react
                          (
-                           incoming().diff(existing()).affectedKeys().hasOnly(['supportCount']) && 
-                           incoming().supportCount == existing().supportCount + 1
+                           incoming().diff(existing()).affectedKeys().hasOnly(['supportCount', 'likeCount', 'hugCount']) &&
+                           (incoming().supportCount == existing().supportCount + 1 || incoming().supportCount == existing().supportCount) &&
+                           (incoming().likeCount == existing().likeCount + 1 || incoming().likeCount == existing().likeCount) &&
+                           (incoming().hugCount == existing().hugCount + 1 || incoming().hugCount == existing().hugCount)
                          ) ||
+                         // Author can edit
                          (
                            request.auth.uid == existing().authorId && 
-                           incoming().diff(existing()).affectedKeys().hasOnly(['content', 'emotion', 'isAnonymous'])
+                           incoming().diff(existing()).affectedKeys().hasOnly(['content', 'emotion', 'isAnonymous', 'lastEditedAt']) &&
+                           incoming().lastEditedAt == request.time
                          )
                        ) &&
                        incoming().authorId == existing().authorId &&
                        incoming().timestamp == existing().timestamp;
       allow delete: if isSignedIn() && 
                        request.auth.uid == existing().authorId;
+
+      match /history/{historyId} {
+        allow read: if isSignedIn() && (get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
+        allow create: if isSignedIn() && 
+                         request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId &&
+                         incoming().editedAt == request.time;
+      }
+
+      match /therapistAdvice/{adviceId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && 
+                         isTherapist() &&
+                         incoming().therapistId == request.auth.uid &&
+                         incoming().createdAt == request.time;
+      }
     }
 
     // CHAT ROOM RULES
@@ -104,10 +133,12 @@ service cloud.firestore {
     // MESSAGE RULES
     function isValidMessage(data) {
       return data.keys().hasAll(['senderId', 'text', 'timestamp']) &&
-             data.keys().size() == 3 &&
+             data.keys().size() >= 3 && data.keys().size() <= 5 &&
              data.senderId is string && data.senderId == request.auth.uid &&
+             (!data.keys().hasAny(['senderName']) || data.senderName is string) &&
              data.text is string && data.text.size() > 0 && data.text.size() <= 2000 &&
-             data.timestamp is timestamp;
+             data.timestamp is timestamp &&
+             (!data.keys().hasAny(['postId']) || data.postId is string);
     }
 
     match /chatRooms/{roomId}/messages/{messageId} {

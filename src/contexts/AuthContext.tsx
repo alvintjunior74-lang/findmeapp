@@ -7,6 +7,7 @@ interface UserProfile {
   username: string;
   trustScore: number;
   email: string;
+  role: 'user' | 'therapist';
 }
 
 interface AuthContextType {

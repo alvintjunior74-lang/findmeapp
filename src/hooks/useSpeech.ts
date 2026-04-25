@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-export function useSpeech(onTextAppend: (text: string) => void) {
+export function useSpeech(onTextAppend: (text: string) => void, options: { continuous?: boolean } = {}) {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   
-  // Keep the latest callback in a ref to avoid recreating the recognition object
   const onTextAppendRef = useRef(onTextAppend);
   useEffect(() => {
     onTextAppendRef.current = onTextAppend;
@@ -14,24 +13,32 @@ export function useSpeech(onTextAppend: (text: string) => void) {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = options.continuous ?? false;
       recognition.interimResults = false;
 
       recognition.onresult = (event: any) => {
-        const last = event.results.length - 1;
-        const text = event.results[last][0].transcript;
+        const text = event.results[event.results.length - 1][0].transcript;
         onTextAppendRef.current(text + ' ');
       };
 
-      recognition.onend = () => setIsListening(false);
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
       recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed') {
+          alert("Microphone access was denied. Please ensure you have granted microphone permissions in your browser and that the application has the necessary permissions.");
+        } else if (event.error === 'network') {
+          alert("Speech recognition failed due to a network error. Please check your internet connection.");
+        } else if (event.error !== 'no-speech') {
+          console.error("Speech recognition error:", event.error);
+        }
         setIsListening(false);
       };
       
       recognitionRef.current = recognition;
     }
-  }, []);
+  }, [options.continuous]);
 
   const toggle = useCallback(() => {
     if (!recognitionRef.current) {

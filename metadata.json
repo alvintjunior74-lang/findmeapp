@@ -1,6 +1,6 @@
 {
   "name": "FindMe",
   "description": "A secure emotional-sharing and trust-building application with real-time chat and posts.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": []
 }

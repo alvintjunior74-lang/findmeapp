@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 export function Login() {
   const [error, setError] = useState('');
   const [loadingMsg, setLoadingMsg] = useState('');
+  const [isTherapist, setIsTherapist] = useState(false);
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
@@ -33,6 +34,7 @@ export function Login() {
           email: (userCredential.user.email || '').substring(0, 150),
           username: (userCredential.user.displayName || 'Anonymous').substring(0, 30),
           trustScore: 0,
+          role: isTherapist ? 'therapist' : 'user',
           joinedAt: serverTimestamp()
         });
       }
@@ -68,6 +70,15 @@ export function Login() {
         {error && <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-sm text-center font-bold">{error}</div>}
 
         <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-800 mb-2 group cursor-pointer" onClick={() => setIsTherapist(!isTherapist)}>
+             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isTherapist ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600 group-hover:border-slate-500'}`}>
+                {isTherapist && <div className="w-2.5 h-1.5 border-l-2 border-b-2 border-white -rotate-45 mb-0.5" />}
+             </div>
+             <div className="flex-1">
+                <p className="text-xs font-bold text-slate-200">I am a Qualified Therapist</p>
+                <p className="text-[10px] text-slate-500">I want to help people and provide professional guidance</p>
+             </div>
+          </div>
           <Button 
             onClick={handleLogin} 
             disabled={!!loadingMsg}

@@ -4,23 +4,16 @@ import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Send, Lock, ArrowLeft, Mic } from 'lucide-react';
+import { Send, Lock, ArrowLeft, Mic, Volume2, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useParams, Link } from 'react-router-dom';
 import { useSpeech } from '../hooks/useSpeech';
-
-// Simple "Encryption" simulation for demonstration purposes as requested in the prompt.
-// In a real production app, use actual Web Crypto API (SubtleCrypto) with secure keys.
-function encryptSim(text: string) {
-  try { return btoa(encodeURIComponent(text)); } catch(e) { return text; }
-}
-function decryptSim(text: string) {
-  try { return decodeURIComponent(atob(text)); } catch(e) { return text; }
-}
+import { speak } from '../lib/tts';
+import { decryptSim, encryptSim } from '../lib/encryption';
 
 export function ChatRoom() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [messages, setMessages] = useState<any[]>([]);
   const [roomInfo, setRoomInfo] = useState<any>(null);
   const [text, setText] = useState('');
@@ -30,7 +23,7 @@ export function ChatRoom() {
 
   const { isListening, toggle: toggleListen, supported: speechSupported } = useSpeech(useCallback((spokenText) => {
     setText(prev => prev + spokenText);
-  }, []));
+  }, []), { continuous: true });
 
   // Initialize room if it doesn't exist yet (for global only)
   useEffect(() => {
@@ -88,6 +81,7 @@ export function ChatRoom() {
     try {
       await addDoc(collection(db, 'chatRooms', roomId, 'messages'), {
         senderId: user.uid,
+        senderName: profile?.username || 'Anonymous',
         text: encryptedText,
         timestamp: serverTimestamp()
       });
@@ -128,17 +122,51 @@ export function ChatRoom() {
           
           return (
             <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-              <div 
-                className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
-                  isMe 
-                    ? 'bg-indigo-600 text-white rounded-br-sm' 
-                    : 'bg-slate-900 text-slate-200 rounded-bl-sm border border-slate-800'
-                }`}
-              >
-                {!isMe && isGlobal && (
-                  <p className="text-[10px] font-bold text-slate-400 mb-1">USER {msg.senderId.substring(0, 4)}</p>
+              <div className="flex items-center gap-2 group/msg">
+                {!isMe && (
+                  <button 
+                    onClick={() => speak(msg.text)} 
+                    className="p-1.5 text-slate-500 hover:text-indigo-400 opacity-0 group-hover/msg:opacity-100 transition-all"
+                    title="Read message"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                  </button>
                 )}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                <div 
+                  className={`max-w-[100%] rounded-2xl px-4 py-3 shadow-sm ${
+                    isMe 
+                      ? 'bg-indigo-600 text-white rounded-br-sm' 
+                      : 'bg-slate-900 text-slate-200 rounded-bl-sm border border-slate-800'
+                  }`}
+                >
+                  {!isMe && isGlobal && (
+                    <p className="text-[10px] font-bold text-slate-400 mb-1">USER {msg.senderId.substring(0, 4)}</p>
+                  )}
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  
+                  {msg.postId && (
+                    <div className="mt-3 p-2 bg-slate-950/40 rounded-xl border border-white/5 group/share">
+                      <div className="flex items-center justify-between gap-3">
+                         <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Shared Content</span>
+                         <Link 
+                           to="/feed" 
+                           className="flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300"
+                         >
+                           VIEW POST <ExternalLink className="w-2.5 h-2.5" />
+                         </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {isMe && (
+                   <button 
+                    onClick={() => speak(msg.text)} 
+                    className="p-1.5 text-slate-500 hover:text-indigo-400 opacity-0 group-hover/msg:opacity-100 transition-all"
+                    title="Read message"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-2 px-1">
                 {timeStr} {isMe && '• You'}

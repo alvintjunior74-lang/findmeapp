@@ -3,26 +3,28 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
-import { Activity, Heart, MessageSquare, TrendingUp } from 'lucide-react';
+import { Activity, Heart, MessageSquare, TrendingUp, ThumbsUp, Smile } from 'lucide-react';
 
 export function Dashboard() {
   const { user, profile } = useAuth();
   const [stats, setStats] = useState({
     totalPosts: 0,
-    totalSupportReceived: 0,
+    totalInteractions: 0,
     favoriteEmotion: '-',
     posts: [] as any[]
   });
   const [loading, setLoading] = useState(true);
 
+  const isTherapist = profile?.role === 'therapist';
+
   useEffect(() => {
     if (!user) return;
 
-    const q = query(
-      collection(db, 'posts'),
-      where('authorId', '==', user.uid)
-    );
-
+    const postsRef = collection(db, 'posts');
+    const q = isTherapist 
+      ? query(postsRef) // Fetch all to filter or use a specific query
+      : query(postsRef, where('authorId', '==', user.uid));
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let postsCount = 0;
       let supportCount = 0;
@@ -31,9 +33,15 @@ export function Dashboard() {
 
       snapshot.docs.forEach(doc => {
         const data = doc.data();
+        // If therapist, only show "high emotion" posts in the feed part
+        if (isTherapist && data.emotion === 'neutral') return;
+
         postsCount++;
-        supportCount += data.supportCount || 0;
-        emotionCounts[data.emotion] = (emotionCounts[data.emotion] || 0) + 1;
+        const interactions = Number(data.supportCount || 0) + Number(data.likeCount || 0) + Number(data.hugCount || 0);
+        supportCount += interactions;
+        if (data.emotion && data.emotion !== 'neutral') {
+          emotionCounts[data.emotion] = (emotionCounts[data.emotion] || 0) + 1;
+        }
         recentPosts.push({ id: doc.id, ...data });
       });
 
@@ -67,7 +75,7 @@ export function Dashboard() {
 
       setStats({
         totalPosts: postsCount,
-        totalSupportReceived: supportCount,
+        totalInteractions: supportCount,
         favoriteEmotion: topEmotion,
         posts: timelinePosts
       });
@@ -91,8 +99,8 @@ export function Dashboard() {
           <Activity className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-xl font-heading font-bold text-slate-100">{profile?.username}'s Dashboard</h2>
-          <p className="text-sm text-slate-500 font-medium tracking-wide">Tracking your activity and emotional journey</p>
+          <h2 className="text-xl font-heading font-bold text-slate-100">{profile?.username}'s {isTherapist ? 'Therapist Portal' : 'Dashboard'}</h2>
+          <p className="text-sm text-slate-500 font-medium tracking-wide">{isTherapist ? 'Reviewing community emotional well-being' : 'Tracking your activity and emotional journey'}</p>
         </div>
       </div>
 
@@ -109,9 +117,9 @@ export function Dashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm transform transition-all hover:scale-[1.02]">
           <div className="flex items-center gap-2 text-rose-400 mb-3">
             <Heart className="w-5 h-5" />
-            <h3 className="text-xs font-bold uppercase tracking-wider">Support Received</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider">Interactions</h3>
           </div>
-          <p className="text-3xl font-heading font-bold text-slate-100">{stats.totalSupportReceived}</p>
+          <p className="text-3xl font-heading font-bold text-slate-100">{stats.totalInteractions}</p>
         </div>
 
         <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm transform transition-all hover:scale-[1.02]">
@@ -124,11 +132,13 @@ export function Dashboard() {
       </div>
 
       <div className="mt-8">
-        <h3 className="text-lg font-heading font-bold text-slate-100 mb-6 px-2 tracking-tight">Emotional Timeline</h3>
+        <h3 className="text-lg font-heading font-bold text-slate-100 mb-6 px-2 tracking-tight">
+          {isTherapist ? 'Recent Community Posts' : 'Emotional Timeline'}
+        </h3>
         <div className="relative border-l-2 border-slate-800 ml-4 pl-6 space-y-6">
           {stats.posts.length === 0 ? (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-500">
-              No activity yet. Start posting to track your journey!
+              {isTherapist ? 'No community posts found to review.' : 'No activity yet. Start posting to track your journey!'}
             </div>
           ) : (
             stats.posts.map((post, index) => {
@@ -171,9 +181,19 @@ export function Dashboard() {
                 <p className="text-slate-300 text-sm leading-relaxed mt-1">
                   "{post.content}"
                 </p>
-                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold mt-2">
-                  <Heart className="w-3.5 h-3.5" />
-                  {post.supportCount || 0} support
+                <div className="flex items-center gap-3 text-[10px] text-slate-400 font-bold mt-2">
+                  <div className="flex items-center gap-1">
+                    <ThumbsUp className="w-3 h-3 text-indigo-400" />
+                    {post.likeCount || 0}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart className="w-3 h-3 text-rose-400" />
+                    {post.supportCount || 0}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Smile className="w-3 h-3 text-amber-400" />
+                    {post.hugCount || 0}
+                  </div>
                 </div>
               </div>
             )})
