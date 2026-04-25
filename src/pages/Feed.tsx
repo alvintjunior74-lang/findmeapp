@@ -89,12 +89,21 @@ export function Feed() {
     }
 
     try {
-      const props = ['name', 'email'];
+      const props = ['name', 'email', 'tel'];
       const opts = { multiple: false };
       const contacts = await (navigator as any).contacts.select(props, opts);
       
       if (contacts.length > 0) {
         const contact = contacts[0];
+        const contactTel = contact.tel?.[0];
+        
+        if (contactTel) {
+          if (window.confirm(`Would you like to call ${contact.name?.[0] || 'your friend'} right now?`)) {
+            window.location.href = `tel:${contactTel}`;
+            return;
+          }
+        }
+
         const contactEmail = contact.email?.[0];
         if (!contactEmail) {
           alert('No email found for this contact to verify if they are on Safespace.');
@@ -119,6 +128,13 @@ export function Feed() {
   const handleQuickMoodShare = async () => {
     const text = `Hey, I'm feeling a bit ${emotion} right now and wanted to reach out.`;
     handleNativeContactShare({ content: text });
+  };
+
+  const handleMakeCall = (phoneNumber: string) => {
+    if (!phoneNumber) return;
+    if (window.confirm(`Do you want to call this person to talk about your feelings?`)) {
+      window.location.href = `tel:${phoneNumber}`;
+    }
   };
 
   const handleDirectShare = async (post: any, targetUser: any) => {
@@ -467,16 +483,27 @@ export function Feed() {
               maxLength={1000}
             />
             {speechSupported && (
-              <button
-                type="button"
-                onClick={toggleListen}
-                className={`absolute bottom-3 right-3 p-1.5 rounded-full transition-colors ${
-                  isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-800/50 text-slate-400 hover:text-indigo-400 hover:bg-slate-800'
-                }`}
-                title="Dictate message"
-              >
-                <Mic className="w-4 h-4" />
-              </button>
+              <div className="absolute bottom-3 right-3 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={toggleListen}
+                  className={`p-1.5 rounded-full transition-colors ${
+                    isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-800/50 text-slate-400 hover:text-indigo-400 hover:bg-slate-800'
+                  }`}
+                  title="Dictate message"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+                {content.trim() && (
+                  <button
+                    type="submit"
+                    className="p-1.5 text-indigo-400 hover:bg-indigo-500/10 rounded-full transition-all"
+                    title="Send message"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -982,7 +1009,21 @@ export function Feed() {
                       <p className="text-sm font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">{u.username}</p>
                       <p className="text-[10px] text-slate-500">{u.role === 'therapist' ? 'Qualified Therapist' : 'Member'}</p>
                     </div>
-                    <Send className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                    <div className="flex items-center gap-1">
+                      {u.phone && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMakeCall(u.phone);
+                          }}
+                          className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                          title="Call"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </button>
+                      )}
+                      <Send className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                    </div>
                   </button>
                 ))}
 

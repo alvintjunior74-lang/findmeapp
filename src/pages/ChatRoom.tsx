@@ -4,7 +4,7 @@ import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Send, Lock, ArrowLeft, Mic, Volume2, ExternalLink } from 'lucide-react';
+import { Send, Lock, ArrowLeft, Mic, Volume2, ExternalLink, Phone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useParams, Link } from 'react-router-dom';
 import { useSpeech } from '../hooks/useSpeech';
@@ -16,6 +16,7 @@ export function ChatRoom() {
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState<any[]>([]);
   const [roomInfo, setRoomInfo] = useState<any>(null);
+  const [otherUser, setOtherUser] = useState<any>(null);
   const [text, setText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   
@@ -40,13 +41,31 @@ export function ChatRoom() {
             participants: [] 
           });
           setRoomInfo({ name: 'Global Circle' });
-        } else if (rm.exists()) {
-          setRoomInfo(rm.data());
-        }
-      } catch(e) {}
+          } else if (rm.exists()) {
+            const data = rm.data();
+            setRoomInfo(data);
+            if (data?.isDirect) {
+              const otherId = data.participants?.find((p: string) => p !== user?.uid);
+              if (otherId) {
+                const uDoc = await getDoc(doc(db, 'users', otherId));
+                if (uDoc.exists()) setOtherUser({ id: uDoc.id, ...uDoc.data() });
+              }
+            }
+          }
+        } catch(e) {}
+      }
+      initRoom();
+  }, [roomId, isGlobal, user]);
+
+  const handleCall = () => {
+    if (otherUser?.phone) {
+      if (window.confirm(`Start a voice call with ${otherUser.username || 'this user'}?`)) {
+        window.location.href = `tel:${otherUser.phone}`;
+      }
+    } else {
+      alert("This user hasn't added their phone number to their profile yet.");
     }
-    initRoom();
-  }, [roomId, isGlobal]);
+  };
 
   useEffect(() => {
     if (!user || !roomId) return;
@@ -106,6 +125,15 @@ export function ChatRoom() {
           <h2 className="font-bold text-slate-100 text-base">{roomName}</h2>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{isGlobal ? 'Publicly accessible' : 'Secure direct message'}</p>
         </div>
+        {!isGlobal && (
+          <button 
+            onClick={handleCall}
+            className="p-2.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all group"
+            title="Start Call"
+          >
+            <Phone className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+          </button>
+        )}
       </div>
 
       {/* Disclaimer */}
@@ -195,16 +223,27 @@ export function ChatRoom() {
               rows={1}
             />
             {speechSupported && (
-              <button
-                type="button"
-                onClick={toggleListen}
-                className={`absolute bottom-2 right-2 p-1.5 rounded-full transition-colors ${
-                  isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800/50'
-                }`}
-                title="Dictate message"
-              >
-                <Mic className="w-4 h-4" />
-              </button>
+              <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={toggleListen}
+                  className={`p-1.5 rounded-full transition-colors ${
+                    isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800/50'
+                  }`}
+                  title="Dictate message"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+                {text.trim() && (
+                  <button
+                    type="submit"
+                    className="p-1.5 text-indigo-400 hover:bg-indigo-500/10 rounded-full transition-all"
+                    title="Send message"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
           <Button type="submit" disabled={!text.trim()} size="icon" className="shrink-0 h-11 w-11 shrink-0 bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-900/20">

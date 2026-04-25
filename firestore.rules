@@ -16,12 +16,13 @@ service cloud.firestore {
     // USER RULES
     function isValidUser(data) {
       return data.keys().hasAll(['email', 'username', 'trustScore', 'joinedAt', 'role']) &&
-             data.keys().size() == 5 &&
+             data.keys().size() >= 5 && data.keys().size() <= 6 &&
              data.email is string && data.email.size() <= 150 &&
              data.username is string && data.username.size() > 0 && data.username.size() <= 30 &&
              data.trustScore is number &&
              data.joinedAt is timestamp &&
-             data.role is string && data.role in ['user', 'therapist'];
+             data.role is string && data.role in ['user', 'therapist'] &&
+             (!data.keys().hasAny(['phone']) || data.phone is string);
     }
 
     function isTherapist() {
@@ -41,7 +42,7 @@ service cloud.firestore {
       allow update: if isSignedIn() &&
                        request.auth.uid == userId &&
                        isValidUser(incoming()) &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['username', 'trustScore']) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['username', 'trustScore', 'phone']) &&
                        incoming().joinedAt == existing().joinedAt &&
                        incoming().email == existing().email;
     }

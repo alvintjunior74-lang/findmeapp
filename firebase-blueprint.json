@@ -9,7 +9,8 @@
         "username": { "type": "string" },
         "trustScore": { "type": "number" },
         "joinedAt": { "type": "number" },
-        "role": { "type": "string", "enum": ["user", "therapist"] }
+        "role": { "type": "string", "enum": ["user", "therapist"] },
+        "phone": { "type": "string" }
       },
       "required": ["email", "username", "trustScore", "joinedAt", "role"]
     },

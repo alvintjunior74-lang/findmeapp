@@ -17,11 +17,25 @@ export function useSpeech(onTextAppend: (text: string) => void, options: { conti
       recognition.interimResults = false;
 
       recognition.onresult = (event: any) => {
-        const text = event.results[event.results.length - 1][0].transcript;
-        onTextAppendRef.current(text + ' ');
+        let text = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            text += event.results[i][0].transcript;
+          }
+        }
+        if (text) {
+          console.log("Speech recognized:", text);
+          onTextAppendRef.current(text + ' ');
+        }
+      };
+
+      recognition.onstart = () => {
+        console.log("Speech recognition started");
+        setIsListening(true);
       };
 
       recognition.onend = () => {
+        console.log("Speech recognition ended");
         setIsListening(false);
       };
 
