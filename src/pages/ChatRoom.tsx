@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, setDoc, doc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Send, Lock, ArrowLeft, Mic, Volume2, ExternalLink, Phone } from 'lucide-react';
+import { Send, Lock, ArrowLeft, Mic, Volume2, ExternalLink, Phone, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useParams, Link } from 'react-router-dom';
 import { useSpeech } from '../hooks/useSpeech';
@@ -56,6 +56,15 @@ export function ChatRoom() {
       }
       initRoom();
   }, [roomId, isGlobal, user]);
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!roomId || !window.confirm("Delete this message?")) return;
+    try {
+      await deleteDoc(doc(db, 'chatRooms', roomId, 'messages', messageId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `chatRooms/${roomId}/messages/${messageId}`);
+    }
+  };
 
   const handleCall = () => {
     if (otherUser?.phone) {
@@ -187,13 +196,24 @@ export function ChatRoom() {
                   )}
                 </div>
                 {isMe && (
-                   <button 
-                    onClick={() => speak(msg.text)} 
-                    className="p-1.5 text-slate-500 hover:text-indigo-400 opacity-0 group-hover/msg:opacity-100 transition-all"
-                    title="Read message"
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                  </button>
+                   <div className="flex flex-col items-end">
+                     <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => speak(msg.text)} 
+                          className="p-1.5 text-slate-500 hover:text-indigo-400 opacity-0 group-hover/msg:opacity-100 transition-all"
+                          title="Read message"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteMessage(msg.id)} 
+                          className="p-1.5 text-slate-500 hover:text-rose-400 opacity-0 group-hover/msg:opacity-100 transition-all"
+                          title="Delete message"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                     </div>
+                   </div>
                 )}
               </div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-2 px-1">

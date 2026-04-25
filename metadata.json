@@ -1,6 +1,6 @@
 {
-  "name": "FindMe",
-  "description": "A secure emotional-sharing and trust-building application with real-time chat and posts.",
+  "name": "FindMe: The Circle of Radical Trust",
+  "description": "FindMe is a secure emotional-sharing platform and trust-building circle. Connect with others safely, share updates, and receive professional therapist guidance in a radical trust environment.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": []
 }

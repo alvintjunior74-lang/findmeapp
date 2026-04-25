@@ -220,8 +220,7 @@ export function Feed() {
   useEffect(() => {
     if (!user) return;
     const q = query(
-      collection(db, 'posts'), 
-      or(where('authorId', '==', user.uid), where('isAnonymous', '==', true))
+      collection(db, 'posts')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -276,8 +275,8 @@ export function Feed() {
     try {
       await deleteDoc(doc(db, 'posts', postId));
     } catch (err) {
-      console.error(err);
-      alert('Failed to delete post.');
+      console.error("Delete Error:", err);
+      handleFirestoreError(err, OperationType.DELETE, `posts/${postId}`);
     }
   };
 
@@ -694,6 +693,24 @@ export function Feed() {
                         <span className="text-[9px] text-slate-500 ml-auto">
                           {advice.createdAt?.toDate ? formatDistanceToNow(advice.createdAt.toDate(), { addSuffix: true }) : 'Recently'}
                         </span>
+                        {user?.uid === advice.therapistId && (
+                          <button
+                            onClick={async () => {
+                              if (window.confirm("Delete this advice?")) {
+                                try {
+                                  await deleteDoc(doc(db, 'posts', post.id, 'therapistAdvice', advice.id));
+                                  fetchTherapistAdvice(post.id);
+                                } catch (err) {
+                                  handleFirestoreError(err, OperationType.DELETE, `posts/${post.id}/therapistAdvice/${advice.id}`);
+                                }
+                              }
+                            }}
+                            className="p-1 text-rose-400 hover:bg-rose-500/10 rounded ml-1"
+                            title="Delete Advice"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                       <p className="text-slate-300 text-sm leading-relaxed italic">
                         "{advice.content}"

@@ -64,8 +64,7 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      allow get: if isSignedIn() && (existing().authorId == request.auth.uid || existing().isAnonymous == true);
-      allow list: if isSignedIn() && (existing().authorId == request.auth.uid || existing().isAnonymous == true);
+      allow read: if isSignedIn();
       allow create: if isSignedIn() &&
                        isValidId(postId) &&
                        isValidPost(incoming()) &&
@@ -79,9 +78,9 @@ service cloud.firestore {
                          // Anyone can react
                          (
                            incoming().diff(existing()).affectedKeys().hasOnly(['supportCount', 'likeCount', 'hugCount']) &&
-                           (incoming().supportCount == existing().supportCount + 1 || incoming().supportCount == existing().supportCount) &&
-                           (incoming().likeCount == existing().likeCount + 1 || incoming().likeCount == existing().likeCount) &&
-                           (incoming().hugCount == existing().hugCount + 1 || incoming().hugCount == existing().hugCount)
+                           (incoming().get('supportCount', 0) == existing().get('supportCount', 0) + 1 || incoming().get('supportCount', 0) == existing().get('supportCount', 0)) &&
+                           (incoming().get('likeCount', 0) == existing().get('likeCount', 0) + 1 || incoming().get('likeCount', 0) == existing().get('likeCount', 0)) &&
+                           (incoming().get('hugCount', 0) == existing().get('hugCount', 0) + 1 || incoming().get('hugCount', 0) == existing().get('hugCount', 0))
                          ) ||
                          // Author can edit
                          (
@@ -108,6 +107,8 @@ service cloud.firestore {
                          isTherapist() &&
                          incoming().therapistId == request.auth.uid &&
                          incoming().createdAt == request.time;
+        allow delete: if isSignedIn() && 
+                         existing().therapistId == request.auth.uid;
       }
     }
 
@@ -129,6 +130,8 @@ service cloud.firestore {
                        isValidChatRoom(incoming()) &&
                        incoming().createdAt == request.time &&
                        (!incoming().isDirect || request.auth.uid in incoming().participants);
+      allow delete: if isSignedIn() && 
+                       (!existing().isDirect && isTherapist()); // Only therapists can delete whole rooms if they are global? Or maybe nobody can.
     }
 
     // MESSAGE RULES
@@ -151,6 +154,8 @@ service cloud.firestore {
                        incoming().timestamp == request.time &&
                        exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
                        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow delete: if isSignedIn() && 
+                       existing().senderId == request.auth.uid;
     }
   }
 }

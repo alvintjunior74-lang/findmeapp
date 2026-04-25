@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
+import { LandingPage } from './pages/Landing';
 import { Feed } from './pages/Feed';
 import { ChatRoom } from './pages/ChatRoom';
 import { ChatList } from './pages/ChatList';
@@ -34,15 +35,31 @@ function Layout({ children }: { children: React.ReactNode }) {
   }, [theme]);
   
   return (
-    <div className={`min-h-screen flex flex-col max-w-2xl mx-auto shadow-2xl overflow-hidden ${theme === 'flower' ? 'bg-white/90 backdrop-blur-sm border-x border-pink-200' : 'bg-slate-950 border-x border-slate-800'}`}>
-      <header className={`px-8 py-5 flex justify-between items-center border-b shrink-0 ${theme === 'flower' ? 'bg-white/80 border-pink-100' : 'bg-slate-900 border-slate-800'}`}>
+    <div className={`min-h-screen flex flex-col max-w-2xl mx-auto shadow-2xl border-x border-slate-800 ${theme === 'flower' ? 'bg-white/90 theme-flower border-pink-100' : 'bg-slate-950 theme-dark border-slate-800'}`}>
+      <header className={`px-4 sm:px-8 py-5 flex justify-between items-center border-b shrink-0 sticky top-0 z-50 backdrop-blur-md ${theme === 'flower' ? 'bg-white/80 border-pink-100' : 'bg-slate-900/80 border-slate-800'}`}>
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md ${theme === 'flower' ? 'bg-pink-100 shadow-pink-100/50' : 'bg-indigo-500/20 shadow-indigo-900/20'}`}>
-            <Shield className={`w-5 h-5 ${theme === 'flower' ? 'text-pink-500' : 'text-indigo-400'}`} />
-          </div>
-          <h1 className={`text-xl font-heading font-bold tracking-tight ${theme === 'flower' ? 'text-pink-900' : 'text-slate-100'}`}>FindMe</h1>
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:scale-110 ${theme === 'flower' ? 'bg-pink-100 shadow-pink-100/50' : 'bg-indigo-500/20 shadow-indigo-900/20'}`}>
+              <Shield className={`w-5 h-5 ${theme === 'flower' ? 'text-pink-500' : 'text-indigo-400'}`} />
+            </div>
+            <h1 className={`text-xl font-heading font-bold tracking-tight ${theme === 'flower' ? 'text-pink-900' : 'text-slate-100'}`}>FindMe</h1>
+          </Link>
         </div>
         <div className="flex items-center gap-2 relative">
+          {useAuth().user && (
+            <>
+              <Link to="/feed" className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${location.pathname === '/feed' ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200'}`}>
+                Feed
+              </Link>
+              <Link to="/dashboard" className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${location.pathname === '/dashboard' ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200'}`}>
+                Activity
+              </Link>
+              <Link to="/chat" className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isChat ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200'}`}>
+                Chats
+              </Link>
+            </>
+          )}
+          
           <button 
             onClick={() => setShowThemeMenu(!showThemeMenu)}
             className={`p-2 rounded-lg font-bold text-sm transition-all ${theme === 'flower' ? 'text-pink-600 hover:bg-pink-50' : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800'}`}
@@ -52,25 +69,32 @@ function Layout({ children }: { children: React.ReactNode }) {
           </button>
           
           {showThemeMenu && (
-            <div className={`absolute top-full right-0 mt-2 p-2 rounded-xl shadow-xl border z-50 min-w-[120px] ${theme === 'flower' ? 'bg-white border-pink-100' : 'bg-slate-800 border-slate-700'}`}>
+            <div className={`absolute top-full right-0 mt-2 p-2 rounded-xl shadow-xl border z-50 min-w-[150px] ${theme === 'flower' ? 'bg-white border-pink-100' : 'bg-slate-800 border-slate-700'}`}>
               <button 
                 onClick={() => { setTheme('dark'); setShowThemeMenu(false); }}
-                className={`w-full text-left px-3 py-2 text-sm rounded-lg mb-1 font-medium transition-colors ${theme === 'dark' ? 'bg-indigo-500/20 text-indigo-300' : (theme === 'flower' ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-300 hover:bg-slate-700')}`}
+                className={`w-full text-left px-3 py-2 text-sm rounded-lg mb-1 font-bold transition-colors ${theme === 'dark' ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-300 hover:bg-slate-700'}`}
               >
                 Dark Theme
               </button>
               <button 
                 onClick={() => { setTheme('flower'); setShowThemeMenu(false); }}
-                className={`w-full text-left px-3 py-2 text-sm rounded-lg font-medium transition-colors ${theme === 'flower' ? 'bg-pink-100 text-pink-700' : 'text-slate-300 hover:bg-slate-700'}`}
+                className={`w-full text-left px-3 py-2 text-sm rounded-lg font-bold transition-colors ${theme === 'flower' ? 'bg-pink-100 text-pink-700' : 'text-slate-300 hover:bg-slate-700'}`}
               >
                 Flower Theme
               </button>
             </div>
           )}
-          <button onClick={() => signOut(auth)} className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm transition-all ${theme === 'flower' ? 'text-pink-600 hover:bg-pink-50' : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800'}`}>
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
+          
+          {useAuth().user ? (
+            <button onClick={() => signOut(auth)} className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm transition-all ${theme === 'flower' ? 'text-pink-600 hover:bg-pink-50' : 'text-slate-400 hover:text-rose-400 hover:bg-slate-800'}`}>
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          ) : (
+            <Link to="/login" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-900/20">
+              Get Started
+            </Link>
+          )}
         </div>
       </header>
       
@@ -78,7 +102,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <nav className={`border-t flex justify-around p-2 shrink-0 ${theme === 'flower' ? 'bg-white/80 border-pink-100' : 'bg-slate-900 border-slate-800'}`}>
+      <nav className={`md:flex border-t flex justify-around p-2 shrink-0 sticky bottom-0 z-50 backdrop-blur-md ${theme === 'flower' ? 'bg-white/80 border-pink-100' : 'bg-slate-900/80 border-slate-800'}`}>
         <Link 
           to="/" 
           className={`flex flex-col items-center gap-1.5 px-6 py-2 rounded-xl transition-all ${
@@ -122,6 +146,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/" element={
             <ProtectedRoute>
